@@ -27,8 +27,12 @@ import Foundation
 /// `Session` creates and manages Alamofire's `Request` types during their lifetimes. It also provides common
 /// functionality for all `Request`s, including queuing, interception, trust management, redirect handling, and response
 /// cache handling.
+
+/// `Session` 在它们的生命周期中创建并管理 Alamofire 的 `Request`。还为 `Request` 提供通用的功能，包括队列、中断、信任管理、重定向处理和响应缓存处理
 open class Session {
     /// Shared singleton instance used by all `AF.request` APIs. Cannot be modified.
+
+    /// 被所有的 `AF.request` 接口使用的共享单例实例，不可更改
     public static let `default` = Session()
 
     /// Underlying `URLSession` used to create `URLSessionTasks` for this instance, and for which this instance's
@@ -37,27 +41,50 @@ open class Session {
     /// - Note: This instance should **NOT** be used to interact with the underlying `URLSessionTask`s. Doing so will
     ///         break internal Alamofire logic that tracks those tasks.
     ///
+
+    /// 用来为这个实例和它的处理 `URLSessionDelegate` 回调的代理创建 `URLSessionTasks` 的 `URLSession`
+    ///
+    /// - Note: 这个实例不应该被用来和 `URLSessionTask` 交互，否则会毁掉追踪那些任务的内在的 Alamofire 逻辑
     public let session: URLSession
     /// Instance's `SessionDelegate`, which handles the `URLSessionDelegate` methods and `Request` interaction.
+
+    /// 处理 `URLSessionDelegate` 方法和 `Request` 交互的代理
     public let delegate: SessionDelegate
     /// Root `DispatchQueue` for all internal callbacks and state update. **MUST** be a serial queue.
+
+    /// 所有内在回调和状态更新的根 `DispatchQueue`。必须是 **串行队列**
     public let rootQueue: DispatchQueue
     /// Value determining whether this instance automatically calls `resume()` on all created `Request`s.
+
+    /// 决定这个实例是否自动地为所有已创建的 `Request` 执行 `resume()`
     public let startRequestsImmediately: Bool
     /// `DispatchQueue` on which `URLRequest`s are created asynchronously. By default this queue uses `rootQueue` as its
     /// `target`, but a separate queue can be used if request creation is determined to be a bottleneck. Always profile
     /// and test before introducing an additional queue.
+
+    /// `URLRequest`异步创建的 `DispatchQueue`。默认使用 `rootQueue` 作为 `target`，当请求创建成为性能瓶颈时可以使用单独的队列。
+    /// 在引入另外的队列时总是概述和测试。
     public let requestQueue: DispatchQueue
     /// `DispatchQueue` passed to all `Request`s on which they perform their response serialization. By default this
     /// queue uses `rootQueue` as its `target` but a separate queue can be used if response serialization is determined
     /// to be a bottleneck. Always profile and test before introducing an additional queue.
+
+    /// 在所有 `Request` 执行序列化响应的时候传递给的 `DispatchQueue`。默认使用 `rootQueue` 作为 `target`，当响应序列化成为性能瓶颈的时候
+    /// 可以使用单独的队列。在引入另外的队列的时候总是概述和测试。
     public let serializationQueue: DispatchQueue
     /// `RequestInterceptor` used for all `Request` created by the instance. `RequestInterceptor`s can also be set on a
     /// per-`Request` basis, in which case the `Request`'s interceptor takes precedence over this value.
+
+    /// 这个实例为所有 `Request` 创建的 `RequestInterceptor`。`ReqeustInterceptor` 也可以在每一个 `Request` 基础上设置，
+    /// 那样 `Request` 的拦截器将会优先覆盖此值
     public let interceptor: RequestInterceptor?
     /// `ServerTrustManager` instance used to evaluate all trust challenges and provide certificate and key pinning.
+
+    /// 用来评估所有的信任挑战的 `ServerTrustManager` 实例，并提供证书和密钥的固定
     public let serverTrustManager: ServerTrustManager?
     /// `RedirectHandler` instance used to provide customization for request redirection.
+
+    /// 用来为请求重定向提供自定义处理的 `RedirectHandler` 实例
     public let redirectHandler: RedirectHandler?
     /// `CachedResponseHandler` instance used to provide customization of cached response handling.
     public let cachedResponseHandler: CachedResponseHandler?

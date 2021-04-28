@@ -23,7 +23,11 @@
 //
 
 /// Reference to `Session.default` for quick bootstrapping and examples.
+
+/// 引用 Session.default 进行快速引导和示例
 public let AF = Session.default
 
 /// Current Alamofire version. Necessary since SPM doesn't use dynamic libraries. Plus this will be more accurate.
+
+/// 当前的 Alamofire 版本号。自从SPM不支持动态库之后很有必要，加上这个会更精确。
 let version = "5.4.3"
