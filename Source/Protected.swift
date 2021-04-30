@@ -108,6 +108,8 @@ final class UnfairLock: Lock {
 #endif
 
 /// A thread-safe wrapper around a value.
+
+/// 对某个值的线程安全包装器
 @propertyWrapper
 @dynamicMemberLookup
 final class Protected<T> {

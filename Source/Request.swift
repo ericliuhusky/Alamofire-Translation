@@ -26,27 +26,43 @@ import Foundation
 
 /// `Request` is the common superclass of all Alamofire request types and provides common state, delegate, and callback
 /// handling.
+
+/// `Request` 是 Alamofire 所有的请求类型的共同父类，并提供通用的状态、代理和回调处理
 public class Request {
     /// State of the `Request`, with managed transitions between states set when calling `resume()`, `suspend()`, or
     /// `cancel()` on the `Request`.
+
+    /// `Request` 的状态。对 `Request` 执行 `resume()`，`suspend()` 或 `cancel()` 时，设置状态
     public enum State {
         /// Initial state of the `Request`.
+
+        /// `Request` 的初始状态
         case initialized
         /// `State` set when `resume()` is called. Any tasks created for the `Request` will have `resume()` called on
         /// them in this state.
+
+        /// 调用 `resume()` 时设置的状态。
         case resumed
         /// `State` set when `suspend()` is called. Any tasks created for the `Request` will have `suspend()` called on
         /// them in this state.
+
+        /// 调用 `suspend()` 时设置的状态。
         case suspended
         /// `State` set when `cancel()` is called. Any tasks created for the `Request` will have `cancel()` called on
         /// them. Unlike `resumed` or `suspended`, once in the `cancelled` state, the `Request` can no longer transition
         /// to any other state.
+
+        /// 调用 `cancel()` 时设置的状态。一旦设置成 `cancelled`，不可再更改为其它状态
         case cancelled
         /// `State` set when all response serialization completion closures have been cleared on the `Request` and
         /// enqueued on their respective queues.
+
+        /// 当 `Request` 上的所有响应序列化完成闭包被清除，并在各自的队列中排队时设置的状态
         case finished
 
         /// Determines whether `self` can be transitioned to the provided `State`.
+
+        /// 判断自身是否可以变换为提供的 `State`
         func canTransitionTo(_ state: State) -> Bool {
             switch (self, state) {
             case (.initialized, _):
@@ -65,96 +81,176 @@ public class Request {
 
     // MARK: - Initial State
 
+    // MARK: - 初始化状态
+
     /// `UUID` providing a unique identifier for the `Request`, used in the `Hashable` and `Equatable` conformances.
+
+    /// `UUID` 为 `Request` 提供独特的标识符，为了符合 `Hashable` 和 `Equatable` 协议 
     public let id: UUID
     /// The serial queue for all internal async actions.
+
+    /// 所有内部异步执行的序列化队列
     public let underlyingQueue: DispatchQueue
     /// The queue used for all serialization actions. By default it's a serial queue that targets `underlyingQueue`.
+
+    /// 所有序列化执行的队列。默认是指向 `underlyingQueue` 的序列化队列
     public let serializationQueue: DispatchQueue
     /// `EventMonitor` used for event callbacks.
+
+    /// 事件回调的 `EventMonitor`
     public let eventMonitor: EventMonitor?
     /// The `Request`'s interceptor.
+
+    /// `Request` 的中断器
     public let interceptor: RequestInterceptor?
     /// The `Request`'s delegate.
+
+    /// `Request` 的代理
     public private(set) weak var delegate: RequestDelegate?
 
     // MARK: - Mutable State
 
+    // MARK: - 可更改状态
+
     /// Type encapsulating all mutable state that may need to be accessed from anything other than the `underlyingQueue`.
+
+    /// 封装了可能从除了 `underlyingQueue` 以外任何地方访问的所有可变状态
     struct MutableState {
         /// State of the `Request`.
+
+        /// `Request` 的状态
         var state: State = .initialized
         /// `ProgressHandler` and `DispatchQueue` provided for upload progress callbacks.
+
+        /// 提供 `ProgressHandler` 和 `DispatchQueue` 用来回调上传进度
         var uploadProgressHandler: (handler: ProgressHandler, queue: DispatchQueue)?
         /// `ProgressHandler` and `DispatchQueue` provided for download progress callbacks.
+
+        /// 提供 `ProgressHandler` 和 `DispatchQueue` 用来回调下载进度
         var downloadProgressHandler: (handler: ProgressHandler, queue: DispatchQueue)?
         /// `RedirectHandler` provided for to handle request redirection.
+
+        /// 用来处理请求重定向
         var redirectHandler: RedirectHandler?
         /// `CachedResponseHandler` provided to handle response caching.
+
+        /// 用来处理响应缓存
         var cachedResponseHandler: CachedResponseHandler?
         /// Queue and closure called when the `Request` is able to create a cURL description of itself.
+
+        /// 当 `Request` 可以创建它自己的 cURL 描述时调用的队列和闭包
         var cURLHandler: (queue: DispatchQueue, handler: (String) -> Void)?
         /// Queue and closure called when the `Request` creates a `URLRequest`.
+
+        /// `Reqeust` 创建 `URLRequest` 时调用的队列和闭包
         var urlRequestHandler: (queue: DispatchQueue, handler: (URLRequest) -> Void)?
         /// Queue and closure called when the `Request` creates a `URLSessionTask`.
+
+        /// `Request` 创建 `URLSessionTask` 时调用的队列和闭包
         var urlSessionTaskHandler: (queue: DispatchQueue, handler: (URLSessionTask) -> Void)?
         /// Response serialization closures that handle response parsing.
+
+        /// 处理响应解析的响应闭包序列
         var responseSerializers: [() -> Void] = []
         /// Response serialization completion closures executed once all response serializers are complete.
+
+        /// 所有响应序列完成时执行
         var responseSerializerCompletions: [() -> Void] = []
         /// Whether response serializer processing is finished.
+
+        /// 响应序列处理是否已经完成
         var responseSerializerProcessingFinished = false
         /// `URLCredential` used for authentication challenges.
+
+        /// 用于鉴权的 `URLCredential`
         var credential: URLCredential?
         /// All `URLRequest`s created by Alamofire on behalf of the `Request`.
+
+        /// Alamofire 代表 `Request` 创建的所有 `URLRequest`
         var requests: [URLRequest] = []
         /// All `URLSessionTask`s created by Alamofire on behalf of the `Request`.
+
+        /// Alamofire 代表 `Request` 创建的所有 `URLSessionTask`
         var tasks: [URLSessionTask] = []
         /// All `URLSessionTaskMetrics` values gathered by Alamofire on behalf of the `Request`. Should correspond
         /// exactly the the `tasks` created.
+
+        /// Alamofire 代表 `Request` 收集的所有 `URLSessionTaskMetrics`。应与创建的 `tasks` 完全相对应
         var metrics: [URLSessionTaskMetrics] = []
         /// Number of times any retriers provided retried the `Request`.
+
+        /// 提供的重试器，重试 `Request` 的次数
         var retryCount = 0
         /// Final `AFError` for the `Request`, whether from various internal Alamofire calls or as a result of a `task`.
+
+        /// Alamofire 内部调用或 `task` 结果导致的最终 `AFError`
         var error: AFError?
         /// Whether the instance has had `finish()` called and is running the serializers. Should be replaced with a
         /// representation in the state machine in the future.
+
+        /// 实例是否已经完成 `finish()` 调用并正在执行序列化。将来应该替换为状态机中的表示
         var isFinishing = false
     }
 
     /// Protected `MutableState` value that provides thread-safe access to state values.
+
+    /// 受保护的 `MutableState`，提供对状态值的线程安全访问
     @Protected
     fileprivate var mutableState = MutableState()
 
     /// `State` of the `Request`.
+    
+    /// `Request` 的 `State`
     public var state: State { mutableState.state }
     /// Returns whether `state` is `.initialized`.
+
+    /// 判断 `state` 是否是 `.initialized`
     public var isInitialized: Bool { state == .initialized }
     /// Returns whether `state is `.resumed`.
+
+    /// 判断 `state` 是否是 `.resumed`
     public var isResumed: Bool { state == .resumed }
     /// Returns whether `state` is `.suspended`.
+
+    /// 判断 `state` 是否是 `.suspended`
     public var isSuspended: Bool { state == .suspended }
     /// Returns whether `state` is `.cancelled`.
+
+    /// 判断 `state` 是否是 `.cancelled`
     public var isCancelled: Bool { state == .cancelled }
     /// Returns whether `state` is `.finished`.
+
+    /// 判断 `state` 是否是 `.finished`
     public var isFinished: Bool { state == .finished }
 
     // MARK: Progress
 
+    // MARK: 进度
+
     /// Closure type executed when monitoring the upload or download progress of a request.
+
+    /// 监视请求上传下载进度时，执行的闭包类型
     public typealias ProgressHandler = (Progress) -> Void
 
     /// `Progress` of the upload of the body of the executed `URLRequest`. Reset to `0` if the `Request` is retried.
+
+    /// 执行 `URLRequest` 上传 `Progress`。如果 `Request` 重试，重置为 `0`
     public let uploadProgress = Progress(totalUnitCount: 0)
     /// `Progress` of the download of any response data. Reset to `0` if the `Request` is retried.
+
+    /// 响应数据的下载 `Progress`。如果 `Request` 重试，重置为 `0`
     public let downloadProgress = Progress(totalUnitCount: 0)
     /// `ProgressHandler` called when `uploadProgress` is updated, on the provided `DispatchQueue`.
+
+    /// 当 `uploadProgress` 更新后，在提供的 `DispathcQueue` 上调用 `ProgressHandler`
     private var uploadProgressHandler: (handler: ProgressHandler, queue: DispatchQueue)? {
         get { mutableState.uploadProgressHandler }
         set { mutableState.uploadProgressHandler = newValue }
     }
 
     /// `ProgressHandler` called when `downloadProgress` is updated, on the provided `DispatchQueue`.
+
+    /// 当 `downloadProgress` 更新后，在提供的 `DispatchQueue` 上调用 `ProgressHandler`
     fileprivate var downloadProgressHandler: (handler: ProgressHandler, queue: DispatchQueue)? {
         get { mutableState.downloadProgressHandler }
         set { mutableState.downloadProgressHandler = newValue }
@@ -162,7 +258,11 @@ public class Request {
 
     // MARK: Redirect Handling
 
+    // MARK: 重定向处理
+
     /// `RedirectHandler` set on the instance.
+
+    /// 实例上设置的 `RedirectHandler`
     public private(set) var redirectHandler: RedirectHandler? {
         get { mutableState.redirectHandler }
         set { mutableState.redirectHandler = newValue }
@@ -170,7 +270,11 @@ public class Request {
 
     // MARK: Cached Response Handling
 
+    // MARK: 缓存响应处理
+
     /// `CachedResponseHandler` set on the instance.
+
+    /// 实例上设置的 `CacheResponseHandler`
     public private(set) var cachedResponseHandler: CachedResponseHandler? {
         get { mutableState.cachedResponseHandler }
         set { mutableState.cachedResponseHandler = newValue }
@@ -179,6 +283,8 @@ public class Request {
     // MARK: URLCredential
 
     /// `URLCredential` used for authentication challenges. Created by calling one of the `authenticate` methods.
+
+    /// 用于鉴权的 `URLCredential`。通过调用一个 `authenticate` 方法来创建
     public private(set) var credential: URLCredential? {
         get { mutableState.credential }
         set { mutableState.credential = newValue }
@@ -187,39 +293,61 @@ public class Request {
     // MARK: Validators
 
     /// `Validator` callback closures that store the validation calls enqueued.
+
+    /// 存储排列的执行验证的 `Validator` 回调闭包
     @Protected
     fileprivate var validators: [() -> Void] = []
 
     // MARK: URLRequests
 
     /// All `URLRequests` created on behalf of the `Request`, including original and adapted requests.
+
+    /// 所有代表 `Request` 创建的 `URLRequest`，包括原来的和改写的请求
     public var requests: [URLRequest] { mutableState.requests }
     /// First `URLRequest` created on behalf of the `Request`. May not be the first one actually executed.
+
+    /// 代表 `Request` 创建的第一个 `URLRequest`。可能不是真的第一个执行的请求
     public var firstRequest: URLRequest? { requests.first }
     /// Last `URLRequest` created on behalf of the `Request`.
+
+    /// 代表 `Request` 创建的最后一个 `URLRequest`
     public var lastRequest: URLRequest? { requests.last }
     /// Current `URLRequest` created on behalf of the `Request`.
+
+    /// 代表 `Request` 创建的当前的 `URLRequest`
     public var request: URLRequest? { lastRequest }
 
     /// `URLRequest`s from all of the `URLSessionTask`s executed on behalf of the `Request`. May be different from
     /// `requests` due to `URLSession` manipulation.
+
+    /// 代表 `Request` 所有已执行的 `URLSessionTask` 的 `URLRequest`。可能和 `requests` 不同，由于 `URLSession` 的操作变换 
     public var performedRequests: [URLRequest] { $mutableState.read { $0.tasks.compactMap { $0.currentRequest } } }
 
     // MARK: HTTPURLResponse
 
     /// `HTTPURLResponse` received from the server, if any. If the `Request` was retried, this is the response of the
     /// last `URLSessionTask`.
+
+    /// 从服务器接收的 `HTTPURLResponse`。如果 `Request` 重试，这是最后一个 `URLSessionTask` 的响应
     public var response: HTTPURLResponse? { lastTask?.response as? HTTPURLResponse }
 
     // MARK: Tasks
 
     /// All `URLSessionTask`s created on behalf of the `Request`.
+
+    /// 代表 `Request` 创建的所有 `URLSessionTask`
     public var tasks: [URLSessionTask] { mutableState.tasks }
     /// First `URLSessionTask` created on behalf of the `Request`.
+
+    /// 代表 `Requset` 创建的第一个 `URLSessionTask`
     public var firstTask: URLSessionTask? { tasks.first }
     /// Last `URLSessionTask` crated on behalf of the `Request`.
+
+    /// 代表 `Request` 创建的最后一个 `URLSessionTask`
     public var lastTask: URLSessionTask? { tasks.last }
     /// Current `URLSessionTask` created on behalf of the `Request`.
+
+    /// 代表 `Request` 创建的当前的 `URLSessionTask`
     public var task: URLSessionTask? { lastTask }
 
     // MARK: Metrics
@@ -236,11 +364,15 @@ public class Request {
     // MARK: Retry Count
 
     /// Number of times the `Request` has been retried.
+
+    /// `Request` 重试的次数
     public var retryCount: Int { mutableState.retryCount }
 
     // MARK: Error
 
     /// `Error` returned from Alamofire internally, from the network request directly, or any validators executed.
+
+    /// Alamofire 从网络请求或任何其它验证执行内部返回的 `Error`
     public fileprivate(set) var error: AFError? {
         get { mutableState.error }
         set { mutableState.error = newValue }
@@ -278,6 +410,12 @@ public class Request {
     /// the `URLRequest` will be adapted before being issued.
     ///
     /// - Parameter request: The `URLRequest` created.
+
+    // MARK: - 内部事件接口
+
+    // 所有接口必须在 underlyingQueue 里调用
+
+    /// 代表本实例创建了 `URLRequest` 之后调用。如果有活跃的 `RequestAdapter`，`URLRequest` 将会在被使用前适配
     func didCreateInitialURLRequest(_ request: URLRequest) {
         dispatchPrecondition(condition: .onQueue(underlyingQueue))
 
@@ -291,6 +429,8 @@ public class Request {
     /// - Note: Triggers retry.
     ///
     /// - Parameter error: `AFError` thrown from the failed creation.
+
+    /// 当 `URLRequest` 创建失败时调用，典型的是通过 `URLRequestConvertible`
     func didFailToCreateURLRequest(with error: AFError) {
         dispatchPrecondition(condition: .onQueue(underlyingQueue))
 
@@ -308,6 +448,8 @@ public class Request {
     /// - Parameters:
     ///   - initialRequest: The `URLRequest` that was adapted.
     ///   - adaptedRequest: The `URLRequest` returned by the `RequestAdapter`.
+
+    /// 当 `RequestAdapter` 成功地适配了一个 `URLRequest` 时调用
     func didAdaptInitialRequest(_ initialRequest: URLRequest, to adaptedRequest: URLRequest) {
         dispatchPrecondition(condition: .onQueue(underlyingQueue))
 
@@ -323,6 +465,8 @@ public class Request {
     /// - Parameters:
     ///   - request: The `URLRequest` the adapter was called with.
     ///   - error:   The `AFError` returned by the `RequestAdapter`.
+
+    /// 当 `RequetsAdapter` 适配 `URLRequest` 失败时调用
     func didFailToAdaptURLRequest(_ request: URLRequest, withError error: AFError) {
         dispatchPrecondition(condition: .onQueue(underlyingQueue))
 
@@ -338,6 +482,8 @@ public class Request {
     /// Final `URLRequest` has been created for the instance.
     ///
     /// - Parameter request: The `URLRequest` created.
+
+    /// 创建了本实例的最终 `URLRequest` 时调用
     func didCreateURLRequest(_ request: URLRequest) {
         dispatchPrecondition(condition: .onQueue(underlyingQueue))
 
@@ -351,6 +497,8 @@ public class Request {
     }
 
     /// Asynchronously calls any stored `cURLHandler` and then removes it from `mutableState`.
+
+    /// 异步调用任意存储的 `cURLHandler` ，然后把它从 `mutableState` 删除
     private func callCURLHandlerIfNecessary() {
         $mutableState.write { mutableState in
             guard let cURLHandler = mutableState.cURLHandler else { return }
@@ -364,6 +512,8 @@ public class Request {
     /// Called when a `URLSessionTask` is created on behalf of the instance.
     ///
     /// - Parameter task: The `URLSessionTask` created.
+
+    /// 代表本实例创建了 `URLSessionTask` 时调用
     func didCreateTask(_ task: URLSessionTask) {
         dispatchPrecondition(condition: .onQueue(underlyingQueue))
 
@@ -379,6 +529,8 @@ public class Request {
     }
 
     /// Called when resumption is completed.
+
+    /// 继续执行时调用
     func didResume() {
         dispatchPrecondition(condition: .onQueue(underlyingQueue))
 
@@ -388,6 +540,8 @@ public class Request {
     /// Called when a `URLSessionTask` is resumed on behalf of the instance.
     ///
     /// - Parameter task: The `URLSessionTask` resumed.
+
+    /// 代表本实例继续执行 `URLSessionTask` 时调用
     func didResumeTask(_ task: URLSessionTask) {
         dispatchPrecondition(condition: .onQueue(underlyingQueue))
 
@@ -395,6 +549,8 @@ public class Request {
     }
 
     /// Called when suspension is completed.
+
+    /// 暂停执行时调用
     func didSuspend() {
         dispatchPrecondition(condition: .onQueue(underlyingQueue))
 
@@ -404,6 +560,8 @@ public class Request {
     /// Called when a `URLSessionTask` is suspended on behalf of the instance.
     ///
     /// - Parameter task: The `URLSessionTask` suspended.
+
+    /// 代表本实例暂停执行 `URLSessionTask` 时执行
     func didSuspendTask(_ task: URLSessionTask) {
         dispatchPrecondition(condition: .onQueue(underlyingQueue))
 
@@ -411,6 +569,8 @@ public class Request {
     }
 
     /// Called when cancellation is completed, sets `error` to `AFError.explicitlyCancelled`.
+
+    /// 取消时调用，设置 `error` 为 `AFError.explicitlyCancelled`
     func didCancel() {
         dispatchPrecondition(condition: .onQueue(underlyingQueue))
 
@@ -422,6 +582,8 @@ public class Request {
     /// Called when a `URLSessionTask` is cancelled on behalf of the instance.
     ///
     /// - Parameter task: The `URLSessionTask` cancelled.
+
+    /// 代表本实例取消 `URLSessionTask` 时调用
     func didCancelTask(_ task: URLSessionTask) {
         dispatchPrecondition(condition: .onQueue(underlyingQueue))
 
@@ -431,6 +593,8 @@ public class Request {
     /// Called when a `URLSessionTaskMetrics` value is gathered on behalf of the instance.
     ///
     /// - Parameter metrics: The `URLSessionTaskMetrics` gathered.
+
+    /// 代表本实例收集 `URLSessionTaskMetrics` 时调用
     func didGatherMetrics(_ metrics: URLSessionTaskMetrics) {
         dispatchPrecondition(condition: .onQueue(underlyingQueue))
 

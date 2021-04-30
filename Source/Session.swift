@@ -87,17 +87,29 @@ open class Session {
     /// 用来为请求重定向提供自定义处理的 `RedirectHandler` 实例
     public let redirectHandler: RedirectHandler?
     /// `CachedResponseHandler` instance used to provide customization of cached response handling.
+
+    /// 用来提供缓存响应自定义处理的 `CachedResponseHandler` 实例
     public let cachedResponseHandler: CachedResponseHandler?
     /// `CompositeEventMonitor` used to compose Alamofire's `defaultEventMonitors` and any passed `EventMonitor`s.
+
+    /// 用来组成 Alamofire 的 `defaultEventMonitors` 和任何传递的 `EventMonitor` 的 `CompositeEventMonitor`
     public let eventMonitor: CompositeEventMonitor
     /// `EventMonitor`s included in all instances. `[AlamofireNotifications()]` by default.
+
+    /// 所有实例包含的 `EventMonitor`。默认是 `[AlamofireNotifications()]`
     public let defaultEventMonitors: [EventMonitor] = [AlamofireNotifications()]
 
     /// Internal map between `Request`s and any `URLSessionTasks` that may be in flight for them.
+
+    /// `Request` 和 任何可能正在运行的 `URLSessionTasks` 的内部映射
     var requestTaskMap = RequestTaskMap()
     /// `Set` of currently active `Request`s.
+
+    /// 当前活跃 `Request` 的 `Set`
     var activeRequests: Set<Request> = []
     /// Completion events awaiting `URLSessionTaskMetrics`.
+    
+    /// 等待 `URLSessionTaskMetrics` 完成的事件
     var waitingCompletions: [URLSessionTask: () -> Void] = [:]
 
     /// Creates a `Session` from a `URLSession` and other parameters.
@@ -132,6 +144,13 @@ open class Session {
     ///                               `nil` by default.
     ///   - eventMonitors:            Additional `EventMonitor`s used by the instance. Alamofire always adds a
     ///                               `AlamofireNotifications` `EventMonitor` to the array passed here. `[]` by default.
+
+    /// 使用 `URLSession` 和其它的参数创建 `Session`
+    ///
+    /// - Note: 当传递 `URLSession` 时，必须创建带有特定 `delegateQueue` 的 `URLSession`，并传递 `delegateQueue` 的 `underlyingQueue`
+    ///         作为初始化器的 `rootQueue` 参数
+    /// - Parameters:
+    ///
     public init(session: URLSession,
                 delegate: SessionDelegate,
                 rootQueue: DispatchQueue,
@@ -242,6 +261,13 @@ open class Session {
     ///
     /// - Parameters:
     ///   - action:     Closure to perform with all `Request`s.
+
+    // MARK: - 所有的请求接口
+
+    /// 对所有活跃的 `Request` 执行操作
+    ///
+    /// - Note: 提供的 `action` 闭包异步执行，意味着有些 `Request` 可能会在运行时完成并且不可用。另外，action 在本实例的 `rootQueue`
+    /// 上执行，所以需要注意 actions 执行的速度。只要 `Request` 的工作完成，任何额外工作将会在另外的线程上执行
     public func withAllRequests(perform action: @escaping (Set<Request>) -> Void) {
         rootQueue.async {
             action(self.activeRequests)
@@ -257,6 +283,11 @@ open class Session {
     /// - Parameters:
     ///   - queue:      `DispatchQueue` on which the completion handler is run. `.main` by default.
     ///   - completion: Closure to be called when all `Request`s have been cancelled.
+
+    /// 取消所有的活跃 `Request`，完成后可以执行一个完成处理回调
+    ///
+    /// - Note: 这是一个异步操作，不会阻塞新 Request 的建立。由于内部工作取消掉的 `Request` 可能不会立即取消，当它们快要完成的时候也可能
+    ///         根本不会取消
     public func cancelAllRequests(completingOnQueue queue: DispatchQueue = .main, completion: (() -> Void)? = nil) {
         withAllRequests { requests in
             requests.forEach { $0.cancel() }
@@ -269,6 +300,10 @@ open class Session {
     // MARK: - DataRequest
 
     /// Closure which provides a `URLRequest` for mutation.
+
+    // MARK: - 数据请求
+
+    /// 为更改 `URLRequest` 提供的闭包 
     public typealias RequestModifier = (inout URLRequest) throws -> Void
 
     struct RequestConvertible: URLRequestConvertible {
@@ -302,6 +337,10 @@ open class Session {
     ///                      parameters. `nil` by default.
     ///
     /// - Returns:       The created `DataRequest`.
+
+    /// 使用传递的组件和 `RequestInterceptor` 构造的 `URLRequest` 来创建 `DataRequest`
+    ///
+    ///
     open func request(_ convertible: URLConvertible,
                       method: HTTPMethod = .get,
                       parameters: Parameters? = nil,
@@ -372,6 +411,8 @@ open class Session {
     ///   - interceptor: `RequestInterceptor` value to be used by the returned `DataRequest`. `nil` by default.
     ///
     /// - Returns:       The created `DataRequest`.
+    
+    /// 使用 `URLReuqestConvertible` 和 `RequestInterceptor` 创建 `DataRequest`
     open func request(_ convertible: URLRequestConvertible, interceptor: RequestInterceptor? = nil) -> DataRequest {
         let request = DataRequest(convertible: convertible,
                                   underlyingQueue: rootQueue,
@@ -405,6 +446,10 @@ open class Session {
     ///                                       the provided parameters. `nil` by default.
     ///
     /// - Returns:       The created `DataStream` request.
+
+    // MARK: - 数据流请求
+
+    /// 使用传递的组件，`Encodable` 参数和 `RequestInterceptor` 创建 `DataStreamRequest`
     open func streamRequest<Parameters: Encodable>(_ convertible: URLConvertible,
                                                    method: HTTPMethod = .get,
                                                    parameters: Parameters? = nil,
@@ -439,6 +484,8 @@ open class Session {
     ///                                       the provided parameters. `nil` by default.
     ///
     /// - Returns:       The created `DataStream` request.
+    
+    /// 使用传递的组件和 `RequestInterceptor` 创建 `DataStreamRequest`
     open func streamRequest(_ convertible: URLConvertible,
                             method: HTTPMethod = .get,
                             headers: HTTPHeaders? = nil,
@@ -467,6 +514,8 @@ open class Session {
     ///                                        by default.
     ///
     /// - Returns:       The created `DataStreamRequest`.
+
+    /// 使用传递的 `URLRequestconvertible` 和 `RequestInterceptor` 创建 `DataStreamRequest`
     open func streamRequest(_ convertible: URLRequestConvertible,
                             automaticallyCancelOnStreamError: Bool = false,
                             interceptor: RequestInterceptor? = nil) -> DataStreamRequest {
@@ -503,6 +552,10 @@ open class Session {
     ///                      should be moved. `nil` by default.
     ///
     /// - Returns:           The created `DownloadRequest`.
+
+    // MARK: - 下载请求
+
+    /// 使用传递的组件，`RequestInterceptor` 和 `Destination` 构建的 `URLRequest` 创建 `DownloadRequest`
     open func download(_ convertible: URLConvertible,
                        method: HTTPMethod = .get,
                        parameters: Parameters? = nil,
@@ -538,6 +591,8 @@ open class Session {
     ///                      should be moved. `nil` by default.
     ///
     /// - Returns:           The created `DownloadRequest`.
+
+    /// 使用传递的组件，`Encodable` 参数和 `RequestInterceptor` 创建的 `DownloadRequest`
     open func download<Parameters: Encodable>(_ convertible: URLConvertible,
                                               method: HTTPMethod = .get,
                                               parameters: Parameters? = nil,
@@ -565,6 +620,8 @@ open class Session {
     ///                  should be moved. `nil` by default.
     ///
     /// - Returns:       The created `DownloadRequest`.
+
+    /// 使用 `URLRequestConvertible`，`RequestInterceptor` 和 `Destination` 创建的 `DownloadRequest`
     open func download(_ convertible: URLRequestConvertible,
                        interceptor: RequestInterceptor? = nil,
                        to destination: DownloadRequest.Destination? = nil) -> DownloadRequest {
@@ -599,6 +656,8 @@ open class Session {
     ///                  should be moved. `nil` by default.
     ///
     /// - Returns:       The created `DownloadRequest`.
+
+    /// 使用由之前取消的 `DownloadRequest`产生的 `resumeData`，和 `RequetsInterceptor` `Destination`  创建 `DownloadRequest`
     open func download(resumingWith data: Data,
                        interceptor: RequestInterceptor? = nil,
                        to destination: DownloadRequest.Destination? = nil) -> DownloadRequest {
@@ -616,6 +675,8 @@ open class Session {
     }
 
     // MARK: - UploadRequest
+
+    // MARK: - 上传请求
 
     struct ParameterlessRequestConvertible: URLRequestConvertible {
         let url: URLConvertible
@@ -660,6 +721,10 @@ open class Session {
     ///                      parameters. `nil` by default.
     ///
     /// - Returns:           The created `UploadRequest`.
+
+    // MARK: 数据
+
+    /// 使用所给的 `Data`，`URLRequest`组件和 `RequestInterceptor` 创建 `UploadRequest`
     open func upload(_ data: Data,
                      to convertible: URLConvertible,
                      method: HTTPMethod = .post,
@@ -685,6 +750,8 @@ open class Session {
     ///                  default.
     ///
     /// - Returns:       The created `UploadRequest`.
+
+    /// 使用所给的 `Data`，`URLRequestConvertible` 和 `RequestInterceptor` 创建 `UploadRequest` 
     open func upload(_ data: Data,
                      with convertible: URLRequestConvertible,
                      interceptor: RequestInterceptor? = nil,
@@ -709,6 +776,10 @@ open class Session {
     ///                      parameters. `nil` by default.
     ///
     /// - Returns:           The created `UploadRequest`.
+
+    // MARK: 文件
+
+    /// 使用所给的文件 `URL`，`URLRequest`组件和 `RequestInterceptor` 创建 `UploadRequest`
     open func upload(_ fileURL: URL,
                      to convertible: URLConvertible,
                      method: HTTPMethod = .post,
@@ -735,6 +806,8 @@ open class Session {
     ///                  default.
     ///
     /// - Returns:       The created `UploadRequest`.
+
+    /// 使用所给的文件 `URL`，`URLRequestConvertible` 和 `RequestInterceptor` 创建 `UploadRequest`
     open func upload(_ fileURL: URL,
                      with convertible: URLRequestConvertible,
                      interceptor: RequestInterceptor? = nil,
@@ -759,6 +832,10 @@ open class Session {
     ///                      parameters. `nil` by default.
     ///
     /// - Returns:           The created `UploadRequest`.
+
+    /// MARK: 输入流
+
+    /// 使用提供的 `InputStream`，`URLRequest`组件和 `RequestInterceptor` 创建 `UploadRequest`
     open func upload(_ stream: InputStream,
                      to convertible: URLConvertible,
                      method: HTTPMethod = .post,
@@ -785,6 +862,8 @@ open class Session {
     ///                  default.
     ///
     /// - Returns:       The created `UploadRequest`.
+
+    /// 使用所提供的 `InputStream`，`URLRequestConvertible` 和 `RequestInterceptor` 创建 `UploadRequest`
     open func upload(_ stream: InputStream,
                      with convertible: URLRequestConvertible,
                      interceptor: RequestInterceptor? = nil,
@@ -825,6 +904,10 @@ open class Session {
     ///                              provided parameters. `nil` by default.
     ///
     /// - Returns:                   The created `UploadRequest`.
+
+    // MARK: 多媒体数据
+
+    /// 
     open func upload(multipartFormData: @escaping (MultipartFormData) -> Void,
                      to url: URLConvertible,
                      usingThreshold encodingMemoryThreshold: UInt64 = MultipartFormData.encodingMemoryThreshold,
@@ -1012,6 +1095,12 @@ open class Session {
     /// Starts performing the provided `Request`.
     ///
     /// - Parameter request: The `Request` to perform.
+
+    // MARK: 执行
+
+    /// 开始执行提供的 `Request`
+    ///
+    /// - Parameter request: 待执行的 `Request`
     func perform(_ request: Request) {
         rootQueue.async {
             guard !request.isCancelled else { return }
@@ -1020,6 +1109,8 @@ open class Session {
 
             self.requestQueue.async {
                 // Leaf types must come first, otherwise they will cast as their superclass.
+
+                // switch 中子类型必须在前，否则将会执行父类型所对应的语句
                 switch request {
                 case let r as UploadRequest: self.performUploadRequest(r) // UploadRequest must come before DataRequest due to subtype relationship.
                 case let r as DataRequest: self.performDataRequest(r)
